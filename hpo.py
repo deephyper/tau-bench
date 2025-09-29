@@ -4,6 +4,7 @@ import subprocess
 
 import numpy as np
 from deephyper.evaluator import Evaluator, RunningJob
+from deephyper.evaluator.callback import TqdmCallback
 from deephyper.hpo import CBO, HpProblem
 
 DEFAULT_VALUE = {
@@ -141,9 +142,7 @@ def main():
     evaluator = Evaluator.create(
         eval_benchmark,
         method="thread",
-        method_kwargs={
-            "num_workers": 2,
-        },
+        method_kwargs={"num_workers": 2, "callbacks": [TqdmCallback()]},
     )
 
     search.search(evaluator, max_evals=1000)
