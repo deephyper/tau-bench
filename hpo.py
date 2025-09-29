@@ -93,8 +93,16 @@ def eval_benchmark(job: RunningJob):
     log_dir = f"hpo/job-{job_id}"
 
     command = f"python run.py --agent-strategy tool-calling --env retail --model gpt-oss-20B-MXFP4 --model-provider openai --user-model gpt-oss-120B-MXFP4 --user-model-provider openai --user-strategy llm --max-concurrency 1 --temperature {temperature} --min_p {min_p} --top_k {top_k} --top_p {top_p} --repeat_penalty {repeat_penalty} --reasoning_effort {reasoning_effort} --task-ids {task_id} --task-split {task_split} --log-dir {log_dir}"
-    completed_process = subprocess.run(command.split(), capture_output=True)
-    objective = parse_subprocess_result(completed_process)
+
+    try:
+        completed_process = subprocess.run(command.split(), capture_output=True)
+    except Exception:
+        objective = "F_subprocess_run"
+    else:
+        try:
+            objective = parse_subprocess_result(completed_process)
+        except Exception:
+            objective = "F_parse"
 
     return {"objective": objective}
 
