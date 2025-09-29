@@ -1,10 +1,15 @@
 # Copyright Sierra
 
 import argparse
-from tau_bench.types import RunConfig
-from tau_bench.run import run
+
+import dotenv
 from litellm import provider_list
+
 from tau_bench.envs.user import UserStrategy
+from tau_bench.run import run
+from tau_bench.types import RunConfig
+
+dotenv.load_dotenv()
 
 
 def parse_args() -> RunConfig:
@@ -48,6 +53,11 @@ def parse_args() -> RunConfig:
         default=0.0,
         help="The sampling temperature for the action model",
     )
+    parser.add_argument("--top_p", type=float, default=1.0)
+    parser.add_argument("--top_k", type=int, default=50)
+    parser.add_argument("--min_p", type=float, default=0.01)
+    parser.add_argument("--repeat_penalty", type=float, default=1.0)
+    parser.add_argument("--reasoning_effort", type=str, default="high")
     parser.add_argument(
         "--task-split",
         type=str,
@@ -57,7 +67,12 @@ def parse_args() -> RunConfig:
     )
     parser.add_argument("--start-index", type=int, default=0)
     parser.add_argument("--end-index", type=int, default=-1, help="Run all tasks if -1")
-    parser.add_argument("--task-ids", type=int, nargs="+", help="(Optional) run only the tasks with the given IDs")
+    parser.add_argument(
+        "--task-ids",
+        type=int,
+        nargs="+",
+        help="(Optional) run only the tasks with the given IDs",
+    )
     parser.add_argument("--log-dir", type=str, default="results")
     parser.add_argument(
         "--max-concurrency",
@@ -67,8 +82,18 @@ def parse_args() -> RunConfig:
     )
     parser.add_argument("--seed", type=int, default=10)
     parser.add_argument("--shuffle", type=int, default=0)
-    parser.add_argument("--user-strategy", type=str, default="llm", choices=[item.value for item in UserStrategy])
-    parser.add_argument("--few-shot-displays-path", type=str, help="Path to a jsonlines file containing few shot displays")
+    parser.add_argument(
+        "--user-strategy",
+        type=str,
+        default="llm",
+        choices=[item.value for item in UserStrategy],
+    )
+    parser.add_argument(
+        "--few-shot-displays-path",
+        type=str,
+        help="Path to a jsonlines file containing few shot displays",
+    )
+    parser.add_argument("--ckpt-path", type=str, default=None)
     args = parser.parse_args()
     print(args)
     return RunConfig(
@@ -79,7 +104,6 @@ def parse_args() -> RunConfig:
         num_trials=args.num_trials,
         env=args.env,
         agent_strategy=args.agent_strategy,
-        temperature=args.temperature,
         task_split=args.task_split,
         start_index=args.start_index,
         end_index=args.end_index,
@@ -90,6 +114,14 @@ def parse_args() -> RunConfig:
         shuffle=args.shuffle,
         user_strategy=args.user_strategy,
         few_shot_displays_path=args.few_shot_displays_path,
+        ckpt_path=args.ckpt_path,
+        # sampling parameters
+        temperature=args.temperature,
+        top_p=args.top_p,
+        top_k=args.top_k,
+        min_p=args.min_p,
+        repeat_penalty=args.repeat_penalty,
+        reasoning_effort=args.reasoning_effort,
     )
 
 

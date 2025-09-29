@@ -1,12 +1,14 @@
 # Copyright Sierra
 
 import json
+from typing import Any, Dict, List, Optional
+
 from litellm import completion
-from typing import List, Optional, Dict, Any
+from tqdm import tqdm
 
 from tau_bench.agents.base import Agent
 from tau_bench.envs.base import Env
-from tau_bench.types import SolveResult, Action, RESPOND_ACTION_NAME
+from tau_bench.types import RESPOND_ACTION_NAME, Action, SolveResult
 
 
 class ToolCallingAgent(Agent):
@@ -17,12 +19,23 @@ class ToolCallingAgent(Agent):
         model: str,
         provider: str,
         temperature: float = 0.0,
+        top_p: float = 1.0,
+        top_k: int = 40,
+        min_p: float = 0.01,
+        repeat_penalty: float = 1.0,
+        reasoning_effort: str = "default"
     ):
         self.tools_info = tools_info
         self.wiki = wiki
         self.model = model
         self.provider = provider
+
         self.temperature = temperature
+        self.top_p = top_p
+        self.top_k = top_k
+        self.min_p = min_p
+        self.repeat_penalty = repeat_penalty
+        self.reasoning_effort = reasoning_effort
 
     def solve(
         self, env: Env, task_index: Optional[int] = None, max_num_steps: int = 30
@@ -36,13 +49,19 @@ class ToolCallingAgent(Agent):
             {"role": "system", "content": self.wiki},
             {"role": "user", "content": obs},
         ]
-        for _ in range(max_num_steps):
+        for _ in tqdm(range(max_num_steps), postfix=f"{task_index=}"):
             res = completion(
                 messages=messages,
                 model=self.model,
                 custom_llm_provider=self.provider,
                 tools=self.tools_info,
+                # inference specific parameters
                 temperature=self.temperature,
+                top_p=self.top_p,
+                top_k=self.top_k,
+                min_p=self.min_p,
+                repeat_penalty=self.repeat_penalty,
+                chat_template_kwargs={"reasoning_effort": self.reasoning_effort},
             )
             next_message = res.choices[0].message.model_dump()
             total_cost += res._hidden_params["response_cost"] or 0
@@ -83,7 +102,12 @@ class ToolCallingAgent(Agent):
 def message_to_action(
     message: Dict[str, Any],
 ) -> Action:
-    if "tool_calls" in message and message["tool_calls"] is not None and len(message["tool_calls"]) > 0 and message["tool_calls"][0]["function"] is not None:
+    if (
+        "tool_calls" in message
+        and message["tool_calls"] is not None
+        and len(message["tool_calls"]) > 0
+        and message["tool_calls"][0]["function"] is not None
+    ):
         tool_call = message["tool_calls"][0]
         return Action(
             name=tool_call["function"]["name"],

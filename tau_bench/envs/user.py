@@ -2,7 +2,9 @@
 
 import abc
 import enum
+import time
 from litellm import completion
+from litellm.exceptions import RateLimitError
 
 from typing import Optional, List, Dict, Any, Union
 
@@ -44,9 +46,19 @@ class LLMUserSimulationEnv(BaseUserSimulationEnv):
         self.reset()
 
     def generate_next_message(self, messages: List[Dict[str, Any]]) -> str:
-        res = completion(
-            model=self.model, custom_llm_provider=self.provider, messages=messages
-        )
+        res = None
+        while res is None:
+            try:
+                res = completion(
+                    model=self.model,
+                    custom_llm_provider=self.provider,
+                    messages=messages,
+                    num_retries=3,
+                )
+            except RateLimitError:
+                res = None
+                print("RateLimiteError: waiting 5 sec. and retrying...")
+                time.sleep(5)
         message = res.choices[0].message
         self.messages.append(message.model_dump())
         self.total_cost = res._hidden_params["response_cost"]

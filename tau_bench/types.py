@@ -88,3 +88,10 @@ class RunConfig(BaseModel):
     shuffle: int = 0
     user_strategy: str = "llm"
     few_shot_displays_path: Optional[str] = None
+    ckpt_path: str | None = None
+    # sampling parameters
+    top_p: float = 1.0
+    top_k: int = 40
+    min_p: float = 0.01
+    repeat_penalty: float = 1.0
+    reasoning_effort: str = "default"
