@@ -105,7 +105,12 @@ def eval_benchmark(job: RunningJob):
         except Exception:
             objective = "F_parse"
 
-    return {"objective": objective}
+    return {
+        "objective": objective,
+        "metadata": {
+            "task_id": int(task_id),
+        },
+    }
 
 
 def main():
