@@ -46,6 +46,9 @@ class LLMUserSimulationEnv(BaseUserSimulationEnv):
         self.reset()
 
     def generate_next_message(self, messages: List[Dict[str, Any]]) -> str:
+        if messages[-1]["content"] == "":
+            raise ValueError("Empty message content in LLMUserSimulationEnv")
+
         res = None
         while res is None:
             try:
@@ -59,7 +62,11 @@ class LLMUserSimulationEnv(BaseUserSimulationEnv):
                 res = None
                 print("RateLimiteError: waiting 5 sec. and retrying...")
                 time.sleep(5)
+
         message = res.choices[0].message
+        if res.choices[0].finish_reason == "length" and "###STOP###" not in message:
+            raise ValueError("Could not finish but the context length is exhausted")
+
         self.messages.append(message.model_dump())
         self.total_cost = res._hidden_params["response_cost"]
         return message.content
