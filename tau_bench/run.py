@@ -151,6 +151,9 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                 )
                 print("-----")
                 with lock:
+                    if os.path.exists(ckpt_path):
+                        with open(ckpt_path, "r") as f:
+                            data = json.load(f)
                     with open(ckpt_path, "w") as f:
                         json.dump(data + [result.model_dump()], f, indent=2)
             else:
