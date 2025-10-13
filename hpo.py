@@ -1,5 +1,6 @@
 import json
 import re
+import os
 import subprocess
 
 import numpy as np
@@ -9,7 +10,7 @@ from deephyper.hpo import CBO, HpProblem
 
 DEFAULT_VALUE = {
     "temperature": 1.0,
-    "top_k": 40,
+    "top_k": 0,
     "top_p": 1.0,
     "min_p": 0.01,
     "repeat_penalty": 1.0,  # 0.0 (disabled)
@@ -36,7 +37,7 @@ def create_problem():
     add_param((0.0, 5.0), "temperature")
     add_param((0.01, 1.0), "top_p")
     add_param((0.01, 1.0), "min_p")
-    add_param((5, 100), "top_k")
+    add_param((0, 100), "top_k")
     add_param((0.0, 2.0), "repeat_penalty")
     add_param(["low", "medium", "high"], "reasoning_effort")
 
@@ -44,7 +45,7 @@ def create_problem():
 
 
 def parse_subprocess_result(result):
-    """Utility to parse a result from a subprocess of the format `"DH-OUTPUT:..."`.
+    """Utility to parse a result from a subprocess. 
 
     Args:
         result: object returned by a subpross with ``stdout`` and ``stderr`` attributes.
@@ -76,6 +77,10 @@ def eval_benchmark(job: RunningJob):
     seed = 42 + job_id
     rng = np.random.RandomState(seed)
 
+    agent_model = "gpt-oss-20B"
+    # user_model = "gpt-oss-120B"
+    user_model = "Gemma-3-27B"
+
     # collect parameters
     temperature = job.parameters["temperature"]
     top_p = job.parameters["top_p"]
@@ -91,9 +96,9 @@ def eval_benchmark(job: RunningJob):
         500,  # dev split for retail
         # 114 + 1, # test split for retail
     )
-    log_dir = f"hpo/job-{job_id}"
+    log_dir = f"hpo/jobs/job-{job_id}"
 
-    command = f"python run.py --agent-strategy tool-calling --env retail --model gpt-oss-20B-MXFP4 --model-provider openai --user-model gpt-oss-120B-MXFP4 --user-model-provider openai --user-strategy llm --max-concurrency 1 --temperature {temperature} --min_p {min_p} --top_k {top_k} --top_p {top_p} --repeat_penalty {repeat_penalty} --reasoning_effort {reasoning_effort} --task-ids {task_id} --task-split {task_split} --log-dir {log_dir}"
+    command = f"python run.py --agent-strategy tool-calling --env retail --model {agent_model} --model-provider openai --user-model {user_model} --user-model-provider openai --user-strategy llm --max-concurrency 1 --temperature {temperature} --min_p {min_p} --top_k {top_k} --top_p {top_p} --repeat_penalty {repeat_penalty} --reasoning_effort {reasoning_effort} --task-ids {task_id} --task-split {task_split} --log-dir {log_dir}"
 
     try:
         completed_process = subprocess.run(command.split(), capture_output=True)
@@ -147,10 +152,15 @@ def main():
     evaluator = Evaluator.create(
         eval_benchmark,
         method="thread",
-        method_kwargs={"num_workers": 2, "callbacks": [TqdmCallback()]},
+        method_kwargs={"num_workers": 3, "callbacks": [TqdmCallback()]},
     )
 
-    search.search(evaluator, max_evals=1000)
+    results_checkpoint = "results_20251007-090420.csv"
+    if os.path.exists(results_checkpoint):
+        print(f"Loading checkpoint: {results_checkpoint}")
+        search.fit_surrogate(results_checkpoint)
+
+    search.search(evaluator, max_evals=8000)
 
 
 if __name__ == "__main__":
