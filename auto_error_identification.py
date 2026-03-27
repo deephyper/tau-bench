@@ -1,4 +1,6 @@
 # Copyright Sierra
+import dotenv
+dotenv.load_dotenv()
 
 import json
 import argparse

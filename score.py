@@ -15,8 +15,10 @@ def display_metrics(results: list[EnvRunResult]) -> None:
     num_trials = len(set([r.trial for r in results]))
     rewards = [r.reward for r in results]
     # avg_reward = sum(rewards) / len(rewards)
+    ddof = 1
     avg_reward = np.mean(rewards)
-    stde_reward = np.std(rewards) / np.sqrt(len(rewards))
+    std_reward = np.std(rewards, ddof=ddof)
+    stde_reward = np.std(rewards, ddof=ddof) / np.sqrt(len(rewards))
     # c from https://arxiv.org/pdf/2406.12045
     c_per_task_id: dict[int, int] = {}
     for result in results:
@@ -30,7 +32,8 @@ def display_metrics(results: list[EnvRunResult]) -> None:
         for c in c_per_task_id.values():
             sum_task_pass_hat_k += comb(c, k) / comb(num_trials, k)
         pass_hat_ks[k] = sum_task_pass_hat_k / len(c_per_task_id)
-    print(f"🏆 Average reward: {avg_reward:.3f} ± {stde_reward:.3f}")
+    print(f"🏆 Average reward: {avg_reward:.2f} ± {stde_reward:.2f}")
+    print(f" Standard deviation: {std_reward:.2f}")
     print("📈 Pass^k")
     for k, pass_hat_k in pass_hat_ks.items():
         print(f"  k={k}: {pass_hat_k}")

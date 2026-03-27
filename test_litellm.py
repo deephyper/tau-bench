@@ -6,27 +6,29 @@ dotenv.load_dotenv()
 
 
 def main():
-    n = 10
+    n = 1
     avg = 0
     for i in range(n):
         response = completion(
-            model="gpt-oss-20B-MXFP4",
+            model="Gemma-3-12B",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {
                     "role": "user",
-                    "content": "What is the 20th term of the Fibonnaci sequence?",
+                    "content": "...",
                 },
             ],
             custom_llm_provider="openai",
             # extra_body={
             #     "chat_template_kwargs": '{"reasoning_effort": "high"}',
             # },
-            chat_template_kwargs={"reasoning_effort": "low"},
+            # chat_template_kwargs={"reasoning_effort": "low"},
         )
-        size = len(response.choices[0].message.reasoning_content)
-        avg += size
-        print(f"[{i=}] {size=} reasoning content")
+        print(response)
+        print(response.choices[0].finish_reason) # == "length"
+        # size = len(response.choices[0].message.reasoning_content)
+        # avg += size
+        # print(f"[{i=}] {size=} reasoning content")
     avg /= n
     print(f"{avg=}")
 

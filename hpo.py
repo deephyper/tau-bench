@@ -45,7 +45,7 @@ def create_problem():
 
 
 def parse_subprocess_result(result):
-    """Utility to parse a result from a subprocess. 
+    """Utility to parse a result from a subprocess.
 
     Args:
         result: object returned by a subpross with ``stdout`` and ``stderr`` attributes.
@@ -89,16 +89,20 @@ def eval_benchmark(job: RunningJob):
     repeat_penalty = job.parameters["repeat_penalty"]
     reasoning_effort = job.parameters["reasoning_effort"]
 
+    max_concurrency = 3
+
     # sample random task id
     task_split = "train"
     task_id = rng.randint(
-        0,
-        500,  # dev split for retail
+        low=0,
+        high=500,  # dev split for retail
         # 114 + 1, # test split for retail
-    )
+        size=10,
+    ).tolist()
+    task_id = " ".join((str(v) for v in task_id))
     log_dir = f"hpo/jobs/job-{job_id}"
 
-    command = f"python run.py --agent-strategy tool-calling --env retail --model {agent_model} --model-provider openai --user-model {user_model} --user-model-provider openai --user-strategy llm --max-concurrency 1 --temperature {temperature} --min_p {min_p} --top_k {top_k} --top_p {top_p} --repeat_penalty {repeat_penalty} --reasoning_effort {reasoning_effort} --task-ids {task_id} --task-split {task_split} --log-dir {log_dir}"
+    command = f"python run.py --agent-strategy tool-calling --env retail --model {agent_model} --model-provider openai --user-model {user_model} --user-model-provider openai --user-strategy llm --max-concurrency {max_concurrency} --temperature {temperature} --min_p {min_p} --top_k {top_k} --top_p {top_p} --repeat_penalty {repeat_penalty} --reasoning_effort {reasoning_effort} --task-ids {task_id} --task-split {task_split} --log-dir {log_dir}"
 
     try:
         completed_process = subprocess.run(command.split(), capture_output=True)
@@ -113,7 +117,7 @@ def eval_benchmark(job: RunningJob):
     return {
         "objective": objective,
         "metadata": {
-            "task_id": int(task_id),
+            "task_id": task_id,
         },
     }
 
@@ -123,7 +127,7 @@ def main():
     search = CBO(
         problem,
         initial_point_generator="lhs",
-        n_initial_points=100,
+        # n_initial_points=100,
         surrogate_model="ET",
         surrogate_model_kwargs={
             "n_estimators": 100,
@@ -143,7 +147,7 @@ def main():
         },
         acq_optimizer="sampling",
         acq_optimizer_kwargs={
-            "acq_optimizer_freq": 10,
+            "acq_optimizer_freq": 1,
             "outliers_iqr_factor": float("inf"),
         },
         solution_selection="argmax_est",
@@ -152,10 +156,10 @@ def main():
     evaluator = Evaluator.create(
         eval_benchmark,
         method="thread",
-        method_kwargs={"num_workers": 3, "callbacks": [TqdmCallback()]},
+        method_kwargs={"num_workers": 1, "callbacks": [TqdmCallback()]},
     )
 
-    results_checkpoint = "results_20251007-090420.csv"
+    results_checkpoint = "results-10samples.csv"
     if os.path.exists(results_checkpoint):
         print(f"Loading checkpoint: {results_checkpoint}")
         search.fit_surrogate(results_checkpoint)
